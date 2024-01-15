@@ -1,0 +1,1 @@
+This folder contains the raw files exported from CellProfiler containing the morphological measurements of PDGFR-B cells. The images were taked at 20x using confocal microscopy. 

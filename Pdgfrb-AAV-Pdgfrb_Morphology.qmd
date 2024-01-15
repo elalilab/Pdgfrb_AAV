@@ -1,0 +1,1010 @@
+---
+title-block-banner: true
+title: "Analysis of PDGFR-beta (AAV)+ cells morphology (Confocal 20x)"
+subtitle: "Data analysis notebook"
+date: today
+date-format: full
+author: 
+  - name: "Daniel Manrique-Castano"
+    orcid: 0000-0002-1912-1764
+    affiliation: Univerisity Laval (Laboratory of neurovascular interactions) 
+keywords: 
+  - PDGFR-B
+  - Brain injury
+  - Bayesian modeling 
+   
+license: "CC BY"
+
+format:
+   pdf: 
+    toc: true
+    number-sections: true
+    colorlinks: true
+   html:
+    code-fold: true
+    embed-resources: true
+    toc: true
+    toc-depth: 2
+    toc-location: left
+    number-sections: true
+    theme: spacelab
+
+knitr:
+  opts_chunk: 
+    warning: false
+    message: false
+    
+csl: science.csl
+bibliography: Ref_PdgfrbMorphology.bib
+---
+
+# Preview
+
+In this notebook, we perform the analysis of the PDGFR-𝛽 morphology in different brain regions. These features were measured in CellProfiler 4.2.4 [@Stirling2021] using the pipeline available in (LINK XXX). Here, we load and handle the raw data to perform scientific inference.
+
+**Parent dataset:** PDGFR-𝛽 / S100-𝛽 staining imaged at 20x in specific ROIs (Cortical perilesion, contralateral cortex, striatum, and hippocampus). Samples are grouped at 1 and 7 days post-ischemia.
+
+**Working dataset:** The `RawData/Pdgfrb_Morphology/MyExpt_Cells.csv`data frame containing multiple measurements obtained from CellProfiler. Please note this data set contains information about companion PDGFR-a staining. However, those are not of interest for the present pipeline.
+
+# Install and load required packages
+
+Install and load all required packages. Please uncomment (delete #) the line code if installation is required. Load the installed libraries each time you start a new R session.
+
+```{r}
+#| label: Install_Packages
+#| include: true
+#| warning: false
+#| message: false
+
+library(devtools)
+
+#install.packages(c("bayesplot", "bayestestR", "brms","broom.mixed", "dplyr", "easystats", "ggdist", "ggplot", "ggcorrplot", "modelbased", "modelr", "patchwork", "poorman", "tidybayes", "tidyverse", "viridis"))
+#devtools::install_github('m-clark/lazerhawk')
+
+library(bayesplot)
+library(bayestestR)
+library(brms)
+library(broom.mixed)
+library(dplyr)
+library(easystats)
+library(ggdist)
+library(ggplot2)
+library(lazerhawk)
+library(modelbased)
+library(modelr)
+library(patchwork)
+library(poorman)
+library(tidybayes)
+library(tidyverse)
+library(viridis)
+```
+
+# Visual themes
+
+We create a visual theme to use in the plots.
+
+```{r}
+#| label: Plot_Theme
+#| include: true
+#| warning: false
+#| message: false
+  
+Plot_theme <- theme_classic() +
+  theme(
+      plot.title = element_text(size=18, hjust = 0.5, face="bold"),
+      plot.subtitle = element_text(size = 10, color = "black"),
+      plot.caption = element_text(size = 12, color = "black"),
+      axis.line = element_line(colour = "black", size = 1.5, linetype = "solid"),
+      axis.ticks.length=unit(7,"pt"),
+     
+      axis.title.x = element_text(colour = "black", size = 16),
+      axis.text.x = element_text(colour = "black", size = 16, angle = 0, hjust = 0.5),
+      axis.ticks.x = element_line(colour = "black", size = 1),
+      
+      axis.title.y = element_text(colour = "black", size = 16),
+      axis.text.y = element_text(colour = "black", size = 16),
+      axis.ticks.y = element_line(colour = "black", size = 1),
+      
+      legend.position="right",
+      legend.direction="vertical",
+      legend.title = element_text(colour="black", face="bold", size=12),
+      legend.text = element_text(colour="black", size=10),
+      
+      plot.margin = margin(t = 10,  # Top margin
+                             r = 2,  # Right margin
+                             b = 10,  # Bottom margin
+                             l = 10) # Left margin
+      ) 
+```
+
+# Load and subset the dataset
+
+We load and handle the `MyExpt_Cells.csv` data frame containing the morphological measurements for PDGFR-𝛽. The data set contains 63 rows, most of which are not of interest for us. In the next chunk, we handle the data frame to subtract the relevant information and make it usable.
+
+```{r}
+#| label: Pdgfrb_LoadData 
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+Pdgfrb_Raw <- read.csv(file = 'RawData/Pdgfrb_Morphology/MyExpt_Cells.csv', 
+                                header = TRUE)
+
+# Extract metadata information from image name
+Pdgfrb <- cbind(Pdgfrb_Raw, do.call(rbind, strsplit(Pdgfrb_Raw$FileName_Raw, "[_\\.]"))[,1:4])
+
+# Select the relevant columns
+Pdgfrb <- subset(Pdgfrb, select = c("AreaShape_Area", "AreaShape_Eccentricity", "1", "2", "3", "4"))
+  
+# Change column names
+colnames(Pdgfrb) <- c("Area", "Eccentricity", "id", "DPI", "Condition", "Region")
+
+# Setting factors
+Pdgfrb$DPI <- factor(Pdgfrb$DPI, levels = c("1D", "7D"))
+
+Pdgfrb$Region <- factor(Pdgfrb$Region, levels = c("Contra", "Ctx", "Str", "HippIpsi"))
+
+```
+
+Now, the working data set comprises only 6 columns with four id/grouping factors and two variables of interest (area and eccentricity). However, given the the area is in pixels, we will create an additional columns with the area in um2. The perform such operation we need to calculate the conversion factor which in our case is the scale squared (3.2306 pixels/micron)².That is, a conversion Factor = (3.2306)² = 10.4368 pixels²/micron². Therefore, the area in square microns should be be: area_in_pixels / 10.4368.
+
+# Additional handing
+
+```{r}
+#| label: Pdgfrb_Handling 
+#| include: true
+#| warning: false
+#| message: false
+#| results: true
+#| cache: true
+
+Pdgfrb$Area_um2 <- Pdgfrb$Area / 10.4368
+
+knitr::kable(Pdgfrb[1:7, ])
+
+```
+
+The last row of the data frame now contains the astrocyte area in micron². Next, we perform an initial data visualization.
+
+# Exploratory data visualization
+
+## Complete respose variables
+
+First, we plot the response variables independent of grouping factors to have a first impression of the data distribution. We begin by the cell area
+
+```{r}
+#| label: fig-Pdgfrb_Area
+#| include: true
+#| warning: false
+#| message: false
+#| fig-cap: Exploratory data visualization for PDGFR-𝛽area
+#| fig-width: 4
+#| fig-height: 3
+
+Pdgfrb_Area_Dens <- 
+  ggplot(
+    data  = Pdgfrb, 
+    aes(x = Area_um2)
+    ) +
+  geom_density(size = 1.5) +
+  geom_rug(size = 1) +
+  scale_x_continuous(name= expression("PDGFR-β area (µm)"^2)) +
+  scale_y_continuous(name = "Density") +
+  Plot_theme 
+  
+Pdgfrb_Area_Dens 
+Pdgfrb_Area_Dens + facet_wrap(~ Region) 
+Pdgfrb_Area_Dens + facet_wrap(~ DPI)
+```
+
+The response variable forms a skewed distribution with a clear peak around 1000 and a clear lower boundary. The skewness of this response can be explained by cell undergoing morphological transformation due to injury. Therefore, we judge reasonable to model this response as a normal distribution to obtain the typical area without consider heavenly the extremes.
+
+On the other hand, visualizing the contributions of the grouping variables (DPI and Region) we observed some variations among the regions that we can explore adding predictors. However, since we expect the magnitude of this influence to be small, we consider it pertinent to model the response with both predictors independently, without interaction.
+
+Now, we perform the same visualization for eccentricity.
+
+```{r}
+#| label: fig-Pdgfrb_Ecc
+#| include: true
+#| warning: false
+#| message: false
+#| fig-cap: Exploratory data visualization for PDGFR-𝛽eccentricity
+#| fig-width: 4
+#| fig-height: 3
+
+
+Pdgfrb_ECC_Dens <- 
+  ggplot(
+    data  = Pdgfrb, 
+    aes(x = Eccentricity)
+    ) +
+  geom_density(size = 1.5) +
+  geom_rug(size = 1) +
+  scale_x_continuous(name= "PDGFR-β eccentricity") +
+  scale_y_continuous(name = "Density") +
+  Plot_theme 
+
+Pdgfrb_ECC_Dens 
+Pdgfrb_ECC_Dens +  facet_wrap(~ Region)
+Pdgfrb_ECC_Dens + facet_wrap(~ DPI)
+
+```
+
+For eccentricity, we see a single peak around 0.8 and clear lower and upper boundaries. As with area, it seems that our grouping variables do not have a strong effect on the distribution of eccentricity. The same considerations done previously apply for this case.
+
+The measurement of eccentricity have a natural lower (0) and upper (1) boundary. Therefore, we consider suitable to perform a regression using a beta distribution.
+
+# Statistical modeling
+
+In this section we perform statistical modeling for the cell area and eccentricity using the `brms` package [@brms-2; @brms].
+
+## Modeling for cell area
+
+We build two models. One model without predictors (only intercept model) to evaluate the overall area in the samples and a model using the two predictor variables (DPI and Region).
+
+The first model takes the form:
+$$
+\begin{aligned}
+Area_{i} = \mu + \epsilon_{i}
+\end{aligned}
+$$
+
+Where $Area_{i}$ is the observed cell area $\mu$ the overall mean (intercept) for the area and $\epsilon_{i}$ is the error term.
+
+```{r}
+#| label: Pdgfrb_Area_Formula
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+Pdgfrb_Area_Mdl1 <- bf(Area_um2 ~ 1)
+
+get_prior(Pdgfrb_Area_Mdl1, Pdgfrb, family = gaussian())
+```
+
+We found no previous information regarding the size of this sort of PDGFR-B cells in the literature. Therefore, we set a weak informative prior for the intercept based on the area of ramified cells (astrocytes) as show in [@testen2018]. Next, we set the prior for sigma in 400 using a student-t distribution given that we expect some variation, but want to restrict the prediction to rule out doublets in the data set. Therefore, the priors take the following notation:
+
+$$
+\begin{aligned}
+Intercept \sim Normal(5000, 2000) \\
+\sigma \sim Student-t(3, 0, 400)
+\end{aligned}
+$$
+
+
+In the next chunk we set and visualize the priors:
+
+```{r}
+#| label: Pdgfrb_Area_Formula_Mdl1
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+Pdgfrb_Area_Prior1 <- 
+  c(prior(normal(4000, 1000), class = Intercept, lb = 0),
+    prior(student_t(3, 0, 400), class = sigma, lb=0))  
+  
+Pdgfrb_Area_Prior1 %>% 
+  parse_dist(Pdgfrb_Area_Prior1) %>% 
+  
+  ggplot(aes(xdist = .dist_obj, y = prior)) + 
+  stat_halfeye(point_interval = median_qi, .width = .95) +
+labs(
+    title = "Priors",
+    subtitle = "Intercept only model",
+    x = NULL,
+    y = NULL
+  )
+
+```
+
+Next, we run the model in `brms`specifying `sample_prior = "only"`to perform prior predictive cheeks.
+
+```{r}
+#| label: Pdgfrb_Area_PriorCheck_Mdl1
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+# Fit model 1
+Pdgfrb_AreaPrior1_Fit1 <- 
+  brm(
+    data    = Pdgfrb,
+    formula = Pdgfrb_Area_Mdl1,
+    prior   = Pdgfrb_Area_Prior1,
+    chains  = 4,
+    cores   = 4,
+    warmup  = 2500, 
+    iter    = 5000, 
+    seed    = 8807,
+    control = list(adapt_delta = 0.99, max_treedepth = 15),
+    sample_prior = "only") 
+
+```
+
+And we plot the predictions
+
+```{r}
+#| label: Pdgfrb_Area_PriorCheck_Mdl1_Plot
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+set.seed(8807)
+pp_check(Pdgfrb_AreaPrior1_Fit1, ndraws = 100) +
+  coord_cartesian(xlim = c(0, 8000)) +                     
+  ggtitle("prior predictive check")
+```
+
+We see that the predictions cover the expected range.Now, we can fit the model
+
+```{r}
+#| label: Pdgfrb_Area_Fit1
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+# Fit model 1
+Pdgfrb_Area_Fit1 <- 
+  brm(
+    family  = gaussian(), 
+    data    = Pdgfrb,
+    formula = Pdgfrb_Area_Mdl1,
+    prior   = Pdgfrb_Area_Prior1,
+    chains  = 4,
+    cores   = 4,
+    warmup  = 2500, 
+    iter    = 5000, 
+    seed    = 8807,
+    control = list(adapt_delta = 0.99, max_treedepth = 15),
+    file    = "Models/Pdgfrb_Area_Fit1.rds",
+    file_refit = "never") 
+
+```
+
+We check the results
+
+```{r}
+#| label: Pdgfrb_Area_Fit1_Results
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+plot(Pdgfrb_Area_Fit1)
+summary(Pdgfrb_Area_Fit1)
+```
+
+We see no faults in the MCMC simulation and the chains have converged successfully. We see that the estimate for the area is 1193 with an uncertainty of (CI95% = 1099 - 1285). These result implicates that the data have strongly overcome the prior and position this cells half of small as as the previous data from astrocytes. It is relevant to highlight that this previous data was not from PDGFR-B labeling.
+
+Next, we can visualize the whole posterior distribution:
+
+```{r}
+#| label: Pdgfrb_Area_Fit1_Intercept
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+Pdgfrb_Area_Fit1_dt <- as_draws_df(Pdgfrb_Area_Fit1)
+
+Pdgfrb_Area_Fit1_fig <-
+ggplot(Pdgfrb_Area_Fit1_dt, aes(x = b_Intercept)) +
+  stat_halfeye (alpha = .7) +
+  stat_pointinterval(.width = c(0.5, 0.95), 
+                     preserve = "single") +
+  scale_x_continuous(limits = c(1000, 1500),
+                     breaks = seq(1000,1500, 200)) +
+  labs(y = "Density",
+       x =  expression(italic(p)(Area))) +
+  Plot_theme
+  
+  
+Pdgfrb_Area_Fit1_fig
+
+ggsave(
+  plot     = Pdgfrb_Area_Fit1_fig, 
+  filename = "Plots/Pdgfrb_Area_Fit1_fig.png", 
+  width    = 10, 
+  height   = 8, 
+  units    = "cm")
+
+```
+
+Please note that this graph represents the whole posterior distribution (estimate) with `stat_pointinterval` at 0.5 (thin line) and 0.95 (gross line) uncertainty intervals.
+
+Next, we fit the model with the two grouping variables to explore if DPI or Region are meaningful predictors for the cell area. This model is formulated as:
+
+$$
+\begin{aligned}
+Area\_um2_i = \beta_0 + \sum \beta_{Region_j} \times I(Region_i = j) + \beta_{DPI} \times DPI_i + \epsilon_i
+\end{aligned}
+$$ 
+Having $Area\_um2_i$ as the observed area for the i-th observation. $\beta_0$ orrespondes to the intercept (value for the base level). $\beta_{Region_j}$ design the coefficients for of level of Region. $\beta_{DPI}$ corresponds to the coefficient for DPI. $\ DPI_i$ is the value of DPI for i-th observation and $\epsilon_{i}$ is the error term.
+
+```{r}
+#| label: Pdgfrb_Area_Mdl2_Formula
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+Pdgfrb_Area_Mdl2 <- bf(Area_um2 ~ Region + DPI)
+
+get_prior(Pdgfrb_Area_Mdl2, Pdgfrb)
+```
+
+We will use the same weak-informative priors for the previous model for intercept and sigma, and will replicate the intercept prior for the `class = b` coefficients.
+
+```{r}
+#| label: Pdgfrb_Area_Formula_Mdl2
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+Pdgfrb_Area_Prior2 <- 
+  c(prior(normal(4000, 1000), class = b, lb = 0),
+    prior(normal(4000, 1000), class = Intercept, lb = 0),
+    prior(student_t(3, 0, 400), class = sigma, lb=0))  
+```
+
+We run the model in `brms`specifying `sample_prior = "only"`to perform prior predictive cheeks.
+
+```{r}
+#| label: Pdgfrb_Area_PriorCheck_Mdl2
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+# Fit model 2
+Pdgfrb_AreaPrior1_Fit2 <- 
+  brm(
+    data    = Pdgfrb,
+    formula = Pdgfrb_Area_Mdl2,
+    prior   = Pdgfrb_Area_Prior2,
+    chains  = 4,
+    cores   = 4,
+    warmup  = 2500, 
+    iter    = 5000, 
+    seed    = 8807,
+    control = list(adapt_delta = 0.99, max_treedepth = 15),
+    sample_prior = "only") 
+
+```
+
+And we plot the predictions
+
+```{r}
+#| label: Pdgfrb_Area_PriorCheck_Mdl2_Plot
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+set.seed(8807)
+pp_check(Pdgfrb_AreaPrior1_Fit2, ndraws = 100) +
+#coord_cartesian(xlim = c(0, 8000)) +                     
+  ggtitle("prior predictive check")
+```
+
+Different to the first model, we see that the prior predictions are broader for this second model. However, we see that a meaningful mass of the draws (distributions) is located within the expected range. Still, note that many of the prior predictions go below 0. We need to put attention into this when evaluating the posterior results.
+
+Now, we fit the actual model:
+
+```{r}
+#| label: Pdgfrb_Area_Fit2
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+# Fit model 2
+Pdgfrb_Area_Fit2 <- 
+  brm(
+    data    = Pdgfrb,
+    formula = Pdgfrb_Area_Mdl2,
+    prior   = Pdgfrb_Area_Prior2,
+    chains  = 4,
+    cores   = 4,
+    warmup  = 2500, 
+    iter    = 5000, 
+    seed    = 8807,
+    control = list(adapt_delta = 0.99, max_treedepth = 15),
+    file    = "Models/Pdgfrb_Area_Fit2.rds",
+    file_refit = "never") 
+
+```
+
+We check the results
+
+```{r}
+#| label: Pdgfrb_Area_Fit2_Results
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+plot(Pdgfrb_Area_Fit2)
+summary(Pdgfrb_Area_Fit2)
+```
+
+We see no faults in the MCMC simulation and the chains have converged successfully. We see that the intercept/base value (healthy contralateral hemisphere) is 1002 (CI95% 863 - 1139). The subsequent coefficients show the contrast to the base level.
+
+We obtain posterior draws to visualize the results:
+
+```{r}
+#| label: Pdgfrb_Area_Fit2_Graph
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+
+Area_Grid <- Pdgfrb %>%
+  data_grid(Region, DPI, n = 5) %>%
+  add_predicted_draws(
+    Pdgfrb_Area_Fit2, 
+    ndraws = 100) 
+
+ Pdgfrb_Area_Fit2_fig <- ggplot(Area_Grid, aes(y = Region, x = .prediction)) +
+  stat_halfeye(alpha=0.5) +
+  scale_y_discrete(name ="", labels=c("Contra", "Cortex", "Stiratum", "Hipp")) +
+  scale_x_continuous(name =  expression(italic(p)(Area))) +
+  geom_jitter(data = Pdgfrb,
+             aes(x = Area_um2,
+                 y = Region,
+                 color = Region)) +
+  Plot_theme +
+  theme(legend.position= "none")
+
+Pdgfrb_Area_Fit2_fig  
+
+
+ggsave(
+  plot     = Pdgfrb_Area_Fit2_fig, 
+  filename = "Plots/Pdgfrb_Area_Fit2_fig.png", 
+  width    = 15, 
+  height   = 9, 
+  units    = "cm")
+
+```
+
+The results show that the area of the PDGFR-B cells does not change substantially across injured regions when compared to the healthy brain.In the hippocampus, cells with a slightly larger area can be observed, mainly due to a better definition of the cellular ramifications.
+
+Next, we can plot the result for the DPI variable
+
+```{r}
+#| label: Pdgfrb_Area_Fit2_Graph2
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+
+Area_Grid <- Pdgfrb %>%
+  data_grid(Region, DPI, n = 5) %>%
+  add_predicted_draws(
+    Pdgfrb_Area_Fit2, 
+    ndraws = 100) 
+
+ Pdgfrb_Area_Fit2_DPI <- ggplot(Area_Grid, aes(y = DPI, x = .prediction)) +
+  stat_halfeye(alpha=0.5) +
+  scale_y_discrete(name ="", labels=c("1D", "7D")) +
+  scale_x_continuous(name =  expression(italic(p)(Area))) +
+  geom_jitter(data = Pdgfrb,
+             aes(x = Area_um2,
+                 y = DPI,
+                 color = DPI)) +
+  Plot_theme +
+  theme(legend.position= "none")
+
+Pdgfrb_Area_Fit2_DPI 
+
+
+ggsave(
+  plot     = Pdgfrb_Area_Fit2_DPI, 
+  filename = "Plots/Pdgfrb_Area_Fit2_DPI.png", 
+  width    = 15, 
+  height   = 9, 
+  units    = "cm")
+
+```
+
+Similarly, we do not have evidence that DPI influences meaningfully the cell area.
+
+## Modeling of eccentricity
+
+In this section, we model the eccentricity of the same detected cells using the same two models. However, the eccentricity takes a beta distribution given the natural boundaries of this metric between 0 and 1.
+
+The intercept only model takes the following form:
+
+$$
+\begin{aligned}
+Eccentricity_i \sim \text{Beta}(\mu, \phi) \\
+logit(\mu) = \beta_0
+\end{aligned}
+$$
+
+In this context, Eccentricity is the response variable $\mu$ is the mean of the beta distribution, $\phi$ is the precision parameter of the beta distribution.Finally, $\beta_0$ represents the logit-transformed mean eccentricity across all cases.
+
+```{r}
+#| label: Pdgfrb_Ecc_Formula
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+Pdgfrb_Ecc_Mdl1 <- bf(Eccentricity ~ 1)
+
+get_prior(Pdgfrb_Ecc_Mdl1, Pdgfrb, family = "beta")
+```
+
+Setting an informative prior based on previous information for eccentricity is challenging. Therefore, to facilitate the exploration of the parameter space, we set weak informative priors based on the beta distribution for the intercept and gamma for the phi term. The priors take the following notation:
+
+$$
+\begin{aligned}
+Logit (\beta_0) \sim \beta(2,2) \\
+\phi \sim Gamma(2, 0.1)
+\end{aligned}
+$$
+
+In the next chunk we set and visualize the priors:
+
+```{r}
+#| label: Pdgfrb_Ecc_Formula_Mdl1
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+Pdgfrb_Ecc_Prior1 <- 
+  c(prior(beta(2,2), class = Intercept),
+    prior(gamma(0.01, 0.01), class = "phi"))  
+  
+Pdgfrb_Ecc_Prior1 %>% 
+  parse_dist(Pdgfrb_Ecc_Prior1) %>% 
+  
+  ggplot(aes(xdist = .dist_obj, y = prior)) + 
+  stat_halfeye(point_interval = median_qi, .width = .95) +
+labs(
+    title = "Priors",
+    subtitle = "Intercept only model",
+    x = NULL,
+    y = NULL
+  ) +
+  facet_wrap(~ .dist_obj, scales = "free")
+
+
+```
+
+Next, we run the model in `brms`specifying `sample_prior = "only"`to perform prior predictive cheeks.
+
+```{r}
+#| label: Pdgfrb_Ecc_PriorCheck_Mdl1
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+# Fit model 1
+Pdgfrb_EccPrior1_Fit1 <- 
+  brm(
+    family  = "beta",
+    data    = Pdgfrb,
+    formula = Pdgfrb_Ecc_Mdl1,
+    prior   = Pdgfrb_Ecc_Prior1,
+    chains  = 4,
+    cores   = 4,
+    warmup  = 2500, 
+    iter    = 5000, 
+    seed    = 8807,
+    control = list(adapt_delta = 0.99, max_treedepth = 15),
+    sample_prior = "only") 
+
+```
+
+And we plot the predictions
+
+```{r}
+#| label: Pdgfrb_Ecc_PriorCheck_Mdl1_Plot
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+set.seed(8807)
+pp_check(Pdgfrb_EccPrior1_Fit1, ndraws = 100) +
+                  
+  ggtitle("prior predictive check")
+```
+
+Now, we fit the model
+
+```{r}
+#| label: Pdgfrb_Ecc_Fit1
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+# Fit model 1
+Pdgfrb_Ecc_Fit1 <- 
+  brm(
+    family  = "beta", 
+    data    = Pdgfrb,
+    formula = Pdgfrb_Ecc_Mdl1,
+    prior   = Pdgfrb_Ecc_Prior1,
+    chains  = 4,
+    cores   = 4,
+    warmup  = 2500, 
+    iter    = 5000, 
+    seed    = 8807,
+    control = list(adapt_delta = 0.99, max_treedepth = 15),
+    file    = "Models/Pdgfrb_Ecc_Fit1.rds",
+    file_refit = "never") 
+
+```
+
+We check the results
+
+```{r}
+#| label: Pdgfrb_Ecc_Fit1_Results
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+plot(Pdgfrb_Ecc_Fit1)
+summary(Pdgfrb_Ecc_Fit1)
+```
+
+We see no faults in the MCMC simulation and the chains have converged successfully. We see that the estimate for the eccentricity is 0.91 with an uncertainty of (CI95% = 0.81 - 0.98). These result implicates that the data have strongly overcome the prior.
+
+Next, we can visualize the whole posterior distribution:
+
+```{r}
+#| label: Pdgfrb_Ecc_Fit1_Intercept
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+Pdgfrb_Ecc_Fit1_dt <- as_draws_df(Pdgfrb_Ecc_Fit1)
+
+Pdgfrb_Ecc_Fit1_fig <-
+ggplot(Pdgfrb_Ecc_Fit1_dt, aes(x = b_Intercept)) +
+  stat_halfeye (alpha = .7) +
+  stat_pointinterval(.width = c(0.5, 0.95), 
+                     preserve = "single") +
+  scale_x_continuous(limits = c(0.7, 1.1),
+                     breaks = seq(0.7,1.1, 0.2)) +
+  labs(y = "Density",
+       x =  expression(italic(p)(Eccentricity))) +
+  Plot_theme
+  
+  
+Pdgfrb_Ecc_Fit1_fig
+
+ggsave(
+  plot     = Pdgfrb_Ecc_Fit1_fig, 
+  filename = "Plots/Pdgfrb_Ecc_Fit1_fig.png", 
+  width    = 10, 
+  height   = 8, 
+  units    = "cm")
+
+```
+
+Please note that this graph represents the whole posterior distribution (estimate) with `stat_pointinterval` at 0.5 (thin line) and 0.95 (gross line) uncertainty intervals.
+
+Next, we fit the model with the two grouping variables with the same consideration done for the area.
+
+```{r}
+#| label: Pdgfrb_Ecc_Mdl2_Formula
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+Pdgfrb_Ecc_Mdl2 <- bf(Eccentricity ~ 1 + DPI)
+
+get_prior(Pdgfrb_Ecc_Mdl2, Pdgfrb, family = "beta")
+```
+
+We will use the same weak-informative priors we used for the intercept-only model, replicating the beta (2,2) prior. However, we stay with the flat default prior for the 7DPI coefficient.
+
+```{r}
+#| label: Pdgfrb_Ecc_Formula_Mdl2
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+Pdgfrb_Ecc_Prior2 <- 
+  c(prior(beta(2,2), class = Intercept),
+    prior(gamma(0.01, 0.01), class = "phi"))  
+
+Pdgfrb_Ecc_Prior2 %>% 
+  parse_dist(Pdgfrb_Ecc_Prior2) %>% 
+  
+  ggplot(aes(xdist = .dist_obj, y = prior)) + 
+  stat_halfeye(point_interval = median_qi, .width = .95) +
+labs(
+    title = "Priors",
+    subtitle = "DPI as a predictor",
+    x = NULL,
+    y = NULL
+  ) +
+  facet_wrap(~ .dist_obj, scales = "free")
+```
+
+We sample from the prior (TO FIX, THERE IS NO SAMPLING)
+
+```{r}
+#| label: Pdgfrb_Ecc_PriorCheck_Mdl2
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+# Fit model 2
+#Pdgfrb_EccPrior1_Fit2 <- 
+ # brm(
+  #  family  = "beta", 
+   # data    = Pdgfrb,
+    #formula = Pdgfrb_Ecc_Mdl2,
+    #prior   = Pdgfrb_Ecc_Prior2,
+    #chains  = 4,
+    #cores   = 4,
+    #warmup  = 5000, 
+    #iter    = 1000, 
+    #seed    = 8807,
+    #control = list(adapt_delta = 0.99, max_treedepth = 15),
+    #sample_prior = "only") 
+
+```
+
+And we plot the predictions
+
+```{r}
+#| label: Pdgfrb_Ecc_PriorCheck_Mdl2_Plot
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+set.seed(8807)
+#pp_check(Pdgfrb_EccPrior1_Fit2, ndraws = 100) +
+#coord_cartesian(xlim = c(0, 8000)) +                     
+  #ggtitle("prior predictive check")
+```
+
+Now, we fit the actual model:
+
+```{r}
+#| label: Pdgfrb_Ecc_Fit2
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+# Fit model 2
+Pdgfrb_Ecc_Fit2 <- 
+  brm(
+    family  = "beta", 
+    data    = Pdgfrb,
+    formula = Pdgfrb_Ecc_Mdl2,
+    prior   = Pdgfrb_Ecc_Prior2,
+    chains  = 4,
+    cores   = 4,
+    warmup  = 5000, 
+    iter    = 10000, 
+    seed    = 8807,
+    control = list(adapt_delta = 0.99, max_treedepth = 15),
+    file    = "Models/Pdgfrb_Ecc_Fit2.rds",
+    file_refit = "never") 
+
+```
+
+We check the results
+
+```{r}
+#| label: Pdgfrb_Ecc_Fit2_Results
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+#plot(Pdgfrb_Ecc_Fit2)
+#summary(Pdgfrb_Ecc_Fit2)
+```
+
+We see no faults in the MCMC simulation and the chains have converged successfully. We see that the intercept/base value (healthy contralateral hemisphere) is 1002 (CI95% 863 - 1139). The subsequent coefficients show the contrast to the base level.
+
+We obtain posterior draws to visualize the results:
+
+```{r}
+#| label: Pdgfrb_Ecc_Fit2_Graph
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+
+Ecc_Grid <- Pdgfrb %>%
+  data_grid(DPI, n = 5) %>%
+  add_predicted_draws(
+    Pdgfrb_Ecc_Fit2, 
+    ndraws = 100) 
+
+ Pdgfrb_Ecc_Fit2_DPI <- ggplot(Ecc_Grid, aes(y = DPI, x = .prediction)) +
+  stat_halfeye(alpha=0.5) +
+  scale_y_discrete(name ="", labels=c("1D", "7D")) +
+  scale_x_continuous(name =  expression(italic(p)(Eccentricity))) +
+  geom_jitter(data = Pdgfrb,
+             aes(x = Eccentricity,
+                 y = DPI,
+                 color =DPI)) +
+  Plot_theme +
+  theme(legend.position= "none")
+
+Pdgfrb_Ecc_Fit2_DPI
+
+
+ggsave(
+  plot     = Pdgfrb_Ecc_Fit2_DPI, 
+  filename = "Plots/Pdgfrb_Ecc_Fit2_DPI.png", 
+  width    = 15, 
+  height   = 9, 
+  units    = "cm")
+
+```
+
+Please not that the difference in the scale between `summary` and the actual plot is because the latter shows the coefficients in their transformed scale (logits for the estimate and, logs for $phi$). Although the results point out that PDGFR-B cells at 7 DPI display a more eccentric morphology (0.15, CI95% = -0.09 - 0.39), this means the convex hull of a cell is more similar to an an ellipse than a circle, the uncertainty is high and the effect small enough to be considered a generality.Highly eccentric cells may be found in some regions of the striatum and perilesion immediately adjacent to the core lesion, but these are not a generality.
+
+# Conclusion
+
+In conclusion, our result denote that PDGFR-B do not show meaningful morphological transformation after cerebral ischemia, besides discrete and highly sporadic changes in cells adjacent to the lesion site.
+
+# References
+
+::: {#refs}
+:::
+
