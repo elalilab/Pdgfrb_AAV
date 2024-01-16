@@ -1,0 +1,69 @@
+Image	Object ID	Object type	Name	Classification	Parent	ROI	Centroid X µm	Centroid Y µm	ID	Parent ID	Side	Num Detections	Area µm^2	Perimeter µm
+1.czi	bf3c4977-777f-40be-a736-6510fa2aee95	Annotation	CNU	Right: CNU	Root object (Image)	Geometry	3113.8	3322.3	623	567	0	418	10602155.6	19089.3
+1.czi	c305b5b2-ad62-489f-9162-e7f2fa87e6c1	Annotation	CTX	Right: CTX	Root object (Image)	Geometry	3982.8	5031.9	688	567	0	861	10131682.7	19147.1
+1.czi	7dc73fc4-41ed-4cb7-8a48-7cb5db2f436a	Annotation	HPF	Right: HPF	Root object (Image)	Polygon	1365.1	5249	1089	695	0	0	24875.2	637.2
+1.czi	6f3b04a1-7e83-4996-aacc-e9a10e2a311a	Annotation	fiber tracts	Right: fiber tracts	Root object (Image)	Geometry	2664.4	3966.3	1009	997	0	34	1278376.8	18244.8
+1.czi	2292f886-917e-4d3b-87d7-9e4f397855e6	Annotation	HY	Right: HY	Root object (Image)	Geometry	1969.5	2020.9	1097	1129	0	11	1251123.1	6409
+2.czi	1e4df386-c3b4-4664-8e74-dcb2b7623fcf	Annotation	CNU	Right: CNU	Root object (Image)	Geometry	3102.1	2974.4	623	567	0	386	8362773.5	17491.5
+2.czi	b9f41d72-2eac-459c-9679-da30081550bb	Annotation	CTX	Right: CTX	Root object (Image)	Geometry	3847	4861.8	688	567	0	778	8410992	16642.6
+2.czi	b782e57e-278d-4244-98b6-0094567ed997	Annotation	HY	Right: HY	Root object (Image)	Geometry	2316.4	1719.7	1097	1129	0	1	105622.4	3006.4
+2.czi	6af14982-2d2c-48a2-b770-920b28a08da5	Annotation	HPF	Right: HPF	Root object (Image)	Polygon	1682.6	4755.3	1089	695	0	0	28897.1	680.04
+2.czi	3b3f51a2-dd72-461d-9ac3-cef0a445d6cb	Annotation	fiber tracts	Right: fiber tracts	Root object (Image)	Geometry	2880.1	4166.6	1009	997	0	27	1094093.4	13374.9
+3.czi	61800381-588d-4e9e-8372-1d979b24215b	Annotation	fiber tracts	Right: fiber tracts	Root object (Image)	Geometry	2766.7	3117.4	1009	997	0	39	1062837.7	10921.5
+3.czi	b7d2f6be-0159-4d5e-9ed7-cb6ba0ddcd61	Annotation	HPF	Right: HPF	Root object (Image)	Polygon	1608.3	3195	1089	695	0	0	78621.2	1870.1
+3.czi	5952753e-3375-4a53-92e4-73c10ae1b395	Annotation	CNU	Right: CNU	Root object (Image)	Geometry	2571.7	1671.6	623	567	0	365	6828388.4	14012.8
+3.czi	49e58fcb-191e-45c3-a766-0a7727eee504	Annotation	CTX	Right: CTX	Root object (Image)	Geometry	3644.4	3402.5	688	567	0	731	8774425	17718.1
+4.czi	bff4cb8f-cffe-4c67-b634-6964f7289d7b	Annotation	CNU	Right: CNU	Root object (Image)	Geometry	3639.6	3039.7	623	567	0	327	5728957.1	18035.8
+4.czi	38a92b81-ae05-4873-9cb6-9e3820c8b760	Annotation	CTX	Right: CTX	Root object (Image)	Geometry	4136.9	4110.5	688	567	0	771	9753971.9	22318.7
+4.czi	3fedf3c6-5b85-4641-9e34-788a3947c464	Annotation	HPF	Right: HPF	Root object (Image)	Polygon	1679.7	5264.5	1089	695	0	4	14041.7	497.9
+4.czi	c64bb0d2-1626-4552-afa2-142751e8adc0	Annotation	TH	Right: TH	Root object (Image)	Polygon	2176.2	3230.1	549	1129	0	34	1653550.1	5779.9
+4.czi	eb422f3d-9d05-4f62-9c59-50fbdcf26c5b	Annotation	HY	Right: HY	Root object (Image)	Geometry	2092.4	1796	1097	1129	0	29	1975360.2	8137.9
+4.czi	475ec7f3-8e97-4fc6-be39-df505c2d0a8f	Annotation	fiber tracts	Right: fiber tracts	Root object (Image)	Geometry	2786.3	3801.6	1009	997	0	58	2089784.4	28104.2
+5.czi	472f50e5-de9a-4490-ac0b-dcf5d346e293	Annotation	HPF	Right: HPF	Root object (Image)	Polygon	1792.9	5053	1089	695	0	8	19953.5	566.83
+5.czi	ac3e74ef-1cf2-4108-b985-4ddf429fbac9	Annotation	CNU	Right: CNU	Root object (Image)	Geometry	3344.3	2987.7	623	567	0	380	9498435.7	23442.9
+5.czi	a6bf5862-cffd-4311-aaaf-2abb842e977d	Annotation	CTX	Right: CTX	Root object (Image)	Geometry	4303.2	4437.2	688	567	0	775	9915361.2	19668.5
+5.czi	3f43e8a0-6d26-40ef-8597-a5e157182d63	Annotation	HY	Right: HY	Root object (Image)	Geometry	2130.5	1658.9	1097	1129	0	11	1352457.6	7189.6
+5.czi	cef57a4f-f0ea-4321-9df3-f0da5c558cfc	Annotation	fiber tracts	Right: fiber tracts	Root object (Image)	Geometry	2710.6	3303.7	1009	997	0	57	1620410	23982.9
+6.czi	26e8e63d-0062-4fda-b90e-3192ad817e43	Annotation	HPF	Right: HPF	Root object (Image)	Polygon	2298.5	5239.1	1089	695	0	148	1738695.8	5626.1
+6.czi	b4274653-f556-4cad-85d1-959a37e1df18	Annotation	TH	Right: TH	Root object (Image)	Geometry	2232.6	3702.6	549	1129	0	77	4452985.4	13707.3
+6.czi	9604af62-fe08-4332-b4d7-6468512334f2	Annotation	HY	Right: HY	Root object (Image)	Geometry	1745.2	1861.2	1097	1129	0	28	2300836	7330.2
+6.czi	1ece5402-b77f-4113-a500-43e7fa9acc7a	Annotation	CNU	Right: CNU	Root object (Image)	Geometry	3786.3	2887.3	623	567	0	162	3723780.8	15397.9
+6.czi	42811e29-74c9-47e9-ab50-ff45f4ce8c90	Annotation	CTX	Right: CTX	Root object (Image)	Geometry	3978.7	4328.8	688	567	0	935	12405125.1	30913.6
+6.czi	299b3a3f-4787-410e-8b70-4efee4c6ad04	Annotation	fiber tracts	Right: fiber tracts	Root object (Image)	Geometry	3248.7	4125.5	1009	997	0	80	2615249.4	39047.5
+7.czi	968a5954-7d53-4154-9b70-19349ddd7eee	Annotation	TH	Right: TH	Root object (Image)	Geometry	3155.4	3804.2	549	1129	0	62	4532454.7	13937.5
+7.czi	73cfd5d4-915b-4c13-87db-aa8a61473f7e	Annotation	HY	Right: HY	Root object (Image)	Geometry	2793.3	1995.9	1097	1129	0	34	2277654	9670.6
+7.czi	b47c3f31-f5df-45ab-b6bc-9ea3b80312d2	Annotation	HPF	Right: HPF	Root object (Image)	Geometry	3574.2	5156.9	1089	695	0	168	2563896.9	8603.5
+7.czi	27f0e7b5-8963-4bb7-90a3-a0e3c68c6c4d	Annotation	fiber tracts	Right: fiber tracts	Root object (Image)	Geometry	4183.8	4058.8	1009	997	0	101	3135353.9	36600.1
+7.czi	95105f47-1292-402d-adf9-8c3a155dbe23	Annotation	CNU	Right: CNU	Root object (Image)	Geometry	4744.4	2828.6	623	567	0	93	2153651.8	11270.3
+7.czi	d66819f4-75b6-414b-b84f-d31af1e2aeee	Annotation	CTX	Right: CTX	Root object (Image)	Geometry	4760.9	4390.9	688	567	0	948	12234610.7	31999.8
+8.czi	3be7844d-cf4a-4266-aa5c-d61ba9cb5944	Annotation	TH	Right: TH	Root object (Image)	Geometry	3362.1	3712.4	549	1129	0	96	4319528.1	14770.7
+8.czi	8acf8ed9-9dc1-4dbc-a0f5-6470e3726ffa	Annotation	HY	Right: HY	Root object (Image)	Geometry	2881.5	1952.3	1097	1129	0	43	2004795.1	7415.7
+8.czi	6c51a9f1-93eb-454d-a660-127fdd0cc48b	Annotation	CNU	Right: CNU	Root object (Image)	Geometry	4835.3	2838.9	623	567	0	165	2825786.9	14905
+8.czi	dc33eb87-26c6-45bc-88ad-d543e0afcf1b	Annotation	CTX	Right: CTX	Root object (Image)	Geometry	4997.5	4297.5	688	567	0	1133	11497561.9	30150.6
+8.czi	8561f7fe-2bd5-4ff7-b078-f7f02d7c7471	Annotation	HPF	Right: HPF	Root object (Image)	Polygon	3528.6	5196.2	1089	695	0	236	1945136.9	5928.4
+8.czi	ad397984-d8ca-4543-bca1-35fba6707537	Annotation	fiber tracts	Right: fiber tracts	Root object (Image)	Geometry	4401	4062.8	1009	997	0	101	2596740.2	38375.2
+9.czi	eb5d125b-4182-48e9-8b3b-f3c2a394b63c	Annotation	HPF	Right: HPF	Root object (Image)	Polygon	2895.2	5203.6	1089	695	0	91	1152120.1	4570.7
+9.czi	8ea7318a-cadd-4868-bf60-14064eec8ba1	Annotation	CNU	Right: CNU	Root object (Image)	Geometry	4300.6	3048.3	623	567	0	192	3635754.7	12818.1
+9.czi	edbc9202-ab9b-4824-9225-3bab66fcccd1	Annotation	CTX	Right: CTX	Root object (Image)	Geometry	4525.7	4358.3	688	567	0	825	10195514.5	28036.4
+9.czi	e89de476-e670-4878-8860-cb832c8b6975	Annotation	TH	Right: TH	Root object (Image)	Geometry	2884.2	3772.4	549	1129	0	64	3404182.2	11667.7
+9.czi	2e453bd6-b604-44e0-80f2-effcccbc83e4	Annotation	HY	Right: HY	Root object (Image)	Geometry	2488.9	2069.5	1097	1129	0	28	1995746.4	6719.1
+9.czi	1a8b7bbf-3003-40e7-bfb4-1ee023c177d5	Annotation	fiber tracts	Right: fiber tracts	Root object (Image)	Geometry	3779.2	4158.3	1009	997	0	90	2206160.9	32809.9
+10.czi	1d2f76a6-740e-460a-a308-d1d6fc3a2a28	Annotation	HPF	Right: HPF	Root object (Image)	Geometry	3402.6	5422.3	1089	695	0	172	2243705.5	7783.1
+10.czi	766eed1f-336c-4605-b608-73f1782c27d4	Annotation	TH	Right: TH	Root object (Image)	Geometry	3219.5	3971.6	549	1129	0	66	4319492.2	14248.1
+10.czi	e15b08f6-594b-480b-b7e5-5f10882f39c7	Annotation	HY	Right: HY	Root object (Image)	Geometry	2973.7	2130.1	1097	1129	0	43	2189036.3	9053.9
+10.czi	22fec4ff-543f-4e26-bbe4-f49f6bb8a4c0	Annotation	CNU	Right: CNU	Root object (Image)	Geometry	4812.5	3185.3	623	567	0	91	2197631	11146.7
+10.czi	5e764ca8-60a9-476e-a661-4bab3c5e8f9a	Annotation	CTX	Right: CTX	Root object (Image)	Geometry	4676.2	4735.9	688	567	0	923	11396413.4	30499.3
+10.czi	360aba0c-bf45-4c89-baa3-a6d07012fa08	Annotation	fiber tracts	Right: fiber tracts	Root object (Image)	Geometry	4163.1	4313.7	1009	997	0	105	2908474.5	35960.4
+11.czi	58b0a136-1b38-4da6-96c6-b499ee364dd9	Annotation	HPF	Right: HPF	Root object (Image)	Geometry	3866.3	5569.8	1089	695	0	227	2994088.6	10624.6
+11.czi	ef15242e-9c3a-44d6-8842-a354fd6bbc1d	Annotation	TH	Right: TH	Root object (Image)	Geometry	3202.8	4403	549	1129	0	104	4065133.4	12948
+11.czi	e0efd4da-f735-4165-86fd-2226d612a971	Annotation	HY	Right: HY	Root object (Image)	Geometry	2884.2	2681.3	1097	1129	0	60	2516188.7	11128.7
+11.czi	bd04b10a-8322-4708-ac8d-cc21ea1843ba	Annotation	fiber tracts	Right: fiber tracts	Root object (Image)	Geometry	4064.2	4632.3	1009	997	0	109	2955014.6	35245.2
+11.czi	3552c9b5-b8dd-4809-a693-09fd3c43cf42	Annotation	CNU	Right: CNU	Root object (Image)	Geometry	4770.6	3433.2	623	567	0	49	1227857.3	8996.4
+11.czi	016389ea-dcef-448e-bf55-db8bccd77dff	Annotation	CTX	Right: CTX	Root object (Image)	Geometry	4695.5	4897.4	688	567	0	966	12363588.8	33341.5
+11.czi	87c2ff9d-63c4-449f-a942-9f8c7d83e3f5	Annotation	MB	Right: MB	Root object (Image)	Geometry	2521.8	4538.2	313	343	0	3	196513.8	4198.1
+12.czi	7b8fe47c-956b-4abe-a82a-7c1d293b6334	Annotation	TH	Right: TH	Root object (Image)	Geometry	3446.5	3692.5	549	1129	0	56	4064333.9	12972.2
+12.czi	7924812a-fac7-4c58-89c8-2373b92dda69	Annotation	HY	Right: HY	Root object (Image)	Geometry	3275.4	1934.1	1097	1129	0	44	2116555.7	9685.3
+12.czi	241eab14-7fc3-4263-9063-d7b6116f6547	Annotation	fiber tracts	Right: fiber tracts	Root object (Image)	Geometry	4370.5	4020.3	1009	997	0	74	2928826	34347.4
+12.czi	1dfb66a5-d9f0-4562-84d2-25605b0bf5c3	Annotation	CNU	Right: CNU	Root object (Image)	Geometry	4976.9	2768.5	623	567	0	56	1666170.9	8865.1
+12.czi	e28a4471-ac72-44ae-aedc-ecad5400f173	Annotation	CTX	Right: CTX	Root object (Image)	Geometry	4884.5	4355.9	688	567	0	937	11406270.6	30628.4
+12.czi	883fc45e-bfc1-46c6-85ed-a51699dfb762	Annotation	HPF	Right: HPF	Root object (Image)	Geometry	3820.9	4988.7	1089	695	0	191	2564101.1	8736.4

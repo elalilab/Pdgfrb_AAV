@@ -244,8 +244,7 @@ In this section we perform statistical modeling for the cell area and eccentrici
 
 We build two models. One model without predictors (only intercept model) to evaluate the overall area in the samples and a model using the two predictor variables (DPI and Region).
 
-The first model takes the form:
-$$
+The first model takes the form: $$
 \begin{aligned}
 Area_{i} = \mu + \epsilon_{i}
 \end{aligned}
@@ -274,7 +273,6 @@ Intercept \sim Normal(5000, 2000) \\
 \sigma \sim Student-t(3, 0, 400)
 \end{aligned}
 $$
-
 
 In the next chunk we set and visualize the priors:
 
@@ -433,8 +431,7 @@ $$
 \begin{aligned}
 Area\_um2_i = \beta_0 + \sum \beta_{Region_j} \times I(Region_i = j) + \beta_{DPI} \times DPI_i + \epsilon_i
 \end{aligned}
-$$ 
-Having $Area\_um2_i$ as the observed area for the i-th observation. $\beta_0$ orrespondes to the intercept (value for the base level). $\beta_{Region_j}$ design the coefficients for of level of Region. $\beta_{DPI}$ corresponds to the coefficient for DPI. $\ DPI_i$ is the value of DPI for i-th observation and $\epsilon_{i}$ is the error term.
+$$ Having $Area\_um2_i$ as the observed area for the i-th observation. $\beta_0$ orrespondes to the intercept (value for the base level). $\beta_{Region_j}$ design the coefficients for of level of Region. $\beta_{DPI}$ corresponds to the coefficient for DPI. $\ DPI_i$ is the value of DPI for i-th observation and $\epsilon_{i}$ is the error term.
 
 ```{r}
 #| label: Pdgfrb_Area_Mdl2_Formula
@@ -1007,4 +1004,3 @@ In conclusion, our result denote that PDGFR-B do not show meaningful morphologic
 
 ::: {#refs}
 :::
-
