@@ -1,0 +1,590 @@
+---
+title-block-banner: true
+title: "Quantification of PDGFR-beta (AAV)+ cells (Widefield 5x)"
+subtitle: "Data analysis notebook"
+date: today
+date-format: full
+author: 
+  - name: "Daniel Manrique-Castano"
+    orcid: 0000-0002-1912-1764
+    affiliation: Univerisity Laval (Laboratory of neurovascular interactions) 
+keywords: 
+  - PDGFR-B
+  - Brain injury
+  - Bayesian modeling 
+   
+license: "CC BY"
+
+format:
+   pdf: 
+    toc: true
+    number-sections: true
+    colorlinks: true
+   html:
+    code-fold: true
+    embed-resources: true
+    toc: true
+    toc-depth: 2
+    toc-location: left
+    number-sections: true
+    theme: spacelab
+
+knitr:
+  opts_chunk: 
+    warning: false
+    message: false
+    
+csl: science.csl
+bibliography: Ref_PdgfrbCuantification.bib
+---
+
+# Preview
+
+In this notebook, we analyze the number of PDGFR-𝛽 (AAV)+ cells in the healthy brain.
+
+**Parent dataset:** Five to seven brain slices were aligned to the Allen brain Atlas using Aligning Big Brains & Atlases (ABBA) (https://biop.github.io/ijp-imagetoatlas/). Then, unbiased cell detection and quantification was done in QuPath [@bankhead2017]. The source project is available at XXXX.
+
+**Working dataset:** "Annotations" and "detections" files exported from QuPath containing cell quantification and information on individual detected cells, respectively. The cells were quantified in the cortex (CTX), striatum/Cerebral Nuclei (CNU), hipothalamus (HY), and fiber tracks.
+
+# Install and load required packages
+
+Install and load all required packages. Please uncomment (delete #) the line code if installation is required. Load the installed libraries each time you start a new R session.
+
+```{r}
+#| label: Install_Packages
+#| include: true
+#| warning: false
+#| message: false
+
+#install.packages("devtools")
+library(devtools)
+
+#install.packages(c("bayesplot", "bayestestR", "brms","broom.mixed", "dplyr", "easystats","emmeans", "ggdist", "ggplot", "ggcorrplot", "modelbased", "modelr", "patchwork", "poorman", "tidybayes", "tidyverse", "viridis"))
+
+library(bayesplot)
+library(bayestestR)
+library(brms)
+library(broom.mixed)
+library(dplyr)
+library(easystats)
+library(emmeans)
+library(ggdist)
+library(ggplot2)
+library(modelbased)
+library(modelr)
+library(patchwork)
+library(poorman)
+library(tidybayes)
+library(tidyverse)
+library(viridis)
+```
+
+# Visual themes
+
+We create a visual theme to use in the plots.
+
+```{r}
+#| label: Plot_Theme
+#| include: true
+#| warning: false
+#| message: false
+  
+Plot_theme <- theme_classic() +
+  theme(
+      plot.title = element_text(size=18, hjust = 0.5, face="bold"),
+      plot.subtitle = element_text(size = 10, color = "black"),
+      plot.caption = element_text(size = 12, color = "black"),
+      axis.line = element_line(colour = "black", size = 1.5, linetype = "solid"),
+      axis.ticks.length=unit(7,"pt"),
+     
+      axis.title.x = element_text(colour = "black", size = 16),
+      axis.text.x = element_text(colour = "black", size = 16, angle = 0, hjust = 0.5),
+      axis.ticks.x = element_line(colour = "black", size = 1),
+      
+      axis.title.y = element_text(colour = "black", size = 16),
+      axis.text.y = element_text(colour = "black", size = 16),
+      axis.ticks.y = element_line(colour = "black", size = 1),
+      
+      legend.position="right",
+      legend.direction="vertical",
+      legend.title = element_text(colour="black", face="bold", size=12),
+      legend.text = element_text(colour="black", size=10),
+      
+      plot.margin = margin(t = 10,  # Top margin
+                             r = 2,  # Right margin
+                             b = 10,  # Bottom margin
+                             l = 10) # Left margin
+      ) 
+```
+
+# Alaysis of cell number in diferent brain regions
+
+## Load and merge the data sets
+
+We load all the `Annotations.tsv` files contained in the `RawData/Pdgfrb_Quantification` folder and merge them in a single data frame.
+
+```{r}
+#| label: Pdgfrb_LoadData 
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+# Set the working directory
+setwd("RawData/Pdgfrb_Quantification") 
+
+# List files ending with 'Annotations.tsv'
+files <- list.files(pattern = "Annotations\\.tsv$")
+
+# Read, add file ID, and combine files
+Pdgfrb_Annotations <- files %>%
+  lapply(function(file) {
+    read_tsv(file) %>%
+      mutate(file_id = file)
+  }) %>%
+  bind_rows()
+
+```
+
+The file contain 16 columns (variables), most of which are not of interest for us. Therefore, we subset the data set and assign descriptive column names.
+
+## Handling the data set
+
+We subset the data set to obtain the cell counts and the respective identification factors. Importantly, the data set contains cell counts for fiber tracts. However, we considered that the alignment to the Allen brain atlas specifically for this region is not trustworthy, given that tiny deformation in the brain slices allows cells from the cortex being included into the fiber tracts. Therefore, we exclude this region from the analysis. 
+
+```{r}
+#| label: Pdgfrb_Handling 
+#| include: true
+#| warning: false
+#| message: false
+#| cache: true
+
+# Select the relevant columns
+Pdgfrb_Annotations <- subset(Pdgfrb_Annotations, select = c("file_id", "Image", "Name", "Num Detections", "Area µm^2"))
+
+colnames(Pdgfrb_Annotations) <- c("Brain_id", "Section", "Region", "Num_Cells", "Region_Area")
+
+Pdgfrb_Annotations <- Pdgfrb_Annotations[!(Pdgfrb_Annotations$Region %in% "fiber tracts"),]
+
+Pdgfrb_Annotations$Region <- factor(Pdgfrb_Annotations$Region, levels = c("CTX", "CNU", "HPF", "MB", "TH", "HY"))
+
+# Convert area to mm
+Pdgfrb_Annotations$Region_Area <- Pdgfrb_Annotations$Region_Area/1000000
+
+Pdgfrb_Annotations$Density <- Pdgfrb_Annotations$Num_Cells/Pdgfrb_Annotations$Region_Area
+
+# Save the final data set
+
+write.csv(Pdgfrb_Annotations, "ProData/Pdgfrb_Annotations.csv")
+
+```
+
+The last row contains the number of cells in each brain region. Next, we perform an initial visualization of the data set.
+
+## Exploratory data visualization
+
+We plot the response variables per region using rain cloud plots.
+
+```{r}
+#| label: fig-Pdgfrb_Cells
+#| include: true
+#| warning: false
+#| message: false
+#| fig-cap: Exploratory data visualization for the number of PDGFR-𝛽cells
+#| fig-width: 4
+#| fig-height: 3
+
+Pdgfrb_Cells <- 
+  ggplot(
+    data  = Pdgfrb_Annotations, 
+    aes(y = Num_Cells,
+        x = Region,
+        fill = Region)
+    ) +
+  
+  ggdist::stat_halfeye(
+    adjust = 0.5,
+    justification = -0.2,
+    .width = 0,
+    point_colour = NA
+  ) +
+  
+  geom_boxplot(
+    width = .3,
+    alpha = 0.5,
+    outlier.color = NA
+  ) +
+  
+  ggdist::stat_dots(
+    side = "left",
+    justification = 1.1,
+  ) +
+  
+  labs(subtitle = "Number of PDGFR-B cells in different brain regions",
+       x = "Region",
+       y = "Number of cells",
+       fill = "Region"
+  ) +
+  
+  Plot_theme +
+  theme(
+    legend.position = "none"
+  ) +
+  
+  coord_flip()
+
+
+Pdgfrb_Cells
+ 
+```
+
+The graph show that PDGFR-B (AAV)+ cells are specially enriched in the cortex, with numbers far surprising those of other regions. Alternatively, we can visualize the estimates for density:
+
+```{r}
+#| label: fig-Pdgfrb_CellsDensity
+#| include: true
+#| warning: false
+#| message: false
+#| fig-cap: Exploratory data visualization for PDGFR-𝛽cells density
+#| fig-width: 4
+#| fig-height: 3
+
+Pdgfrb_Cells <- 
+  ggplot(
+    data  = Pdgfrb_Annotations, 
+    aes(y = Density,
+        x = Region,
+        fill = Region)
+    ) +
+  
+  ggdist::stat_halfeye(
+    adjust = 0.5,
+    justification = -0.2,
+    .width = 0,
+    point_colour = NA
+  ) +
+  
+  geom_boxplot(
+    width = .3,
+    alpha = 0.5,
+    outlier.color = NA
+  ) +
+  
+  ggdist::stat_dots(
+    side = "left",
+    justification = 1.1,
+  ) +
+  
+  labs(subtitle = "Density of PDGFR-B cells in different brain regions",
+       x = "Region",
+       y = "Density (mm2)",
+       fill = "Region"
+  ) +
+  
+  Plot_theme +
+  theme(
+    legend.position = "none"
+  ) +
+  
+  coord_flip()
+
+
+Pdgfrb_Cells
+ 
+```
+
+We can see that some hippocampal slides feature more cells per mm2 than the cortex.Given the distribution of the data, we find reasonable to model it using a `hurdle_poisson()` or `hurdle_lognormal()`models.
+
+# Statistical modeling
+
+In this section, we do modeling for the density of cells using the `brms` package [@brms; @bürkner2018]. Poisson models assumes that that the mean and variance are equal. However, the exploratory data visualization shows this is not the case, specially by looking at the hippocampal formation (HPF). This region has a relatively low mean, but a great variation when compared to regions like the cerebral nuclei (CNU) and the cortex (CTX). From this angle, modeling a poisson distribution may under estimate the great variability in the hippocampal formation.
+
+Hence, although we handle count data, we judge prudent to perform the modeling using a hurdle log-normal model, commonly used for continuous data with right-skewed distribution.
+
+## Modeling for cell density
+
+We build two models. A first model using the `hurdle_lognormal` distribution having `Region` as a predictor. On the other hand, taking into consideration that we processed several slides per animal, we fit multilevel model accounting for the hierarchy of the data. 
+
+
+### Simple lognormal model
+
+This model takes the form:
+
+$$
+   \text{logit}(Pr(Density_i > 0 | Region_i)) = \alpha_0 + \sum \alpha_{Region_j} \times I(Region_i = j)
+$$
+
+The preceding models the probability of `Density` being greater than zero. Then:
+
+$$ 
+\begin{aligned}
+\log(Density_i) \sim \text{Normal}(\mu\_i, \sigma) \text{ for } \\ Density_i \> 0 \\
+\mu\_i = \beta_0 + \sum \beta{Region_j} \times I(Region_i = j)
+\end{aligned}
+$$ Models the log, where $\mu_i$ and $\sigma$ are the mean and standard deviation of the log-normal distribution for the non-zero values. $\beta_0$ and $\beta_Region$ are the coefficients for the effects of Region on the log-transformed `Density`.
+
+Now, we establish the model formula:
+
+```{r}
+#| label: Pdgfrb_Density_Formula
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+Pdgfrb_Density_Mdl1 <- bf(Density ~ Region,
+                       hu ~ Region)
+
+get_prior(Pdgfrb_Density_Mdl1, Pdgfrb_Annotations, family = hurdle_lognormal())
+```
+
+In this case, we perform the modeling using the `brms` default priors. Now, we can fit the model:
+
+```{r}
+#| label: Pdgfrb_Density_Fit1
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+# Fit model 1
+Pdgfrb_Density_Fit1 <- 
+  brm(
+    family  = hurdle_lognormal(), 
+    data    = Pdgfrb_Annotations,
+    formula = Pdgfrb_Density_Mdl1,
+    chains  = 4,
+    cores   = 4,
+    warmup  = 2500, 
+    iter    = 5000, 
+    seed    = 8807,
+    control = list(adapt_delta = 0.99, max_treedepth = 15),
+    file    = "Models/Pdgfrb_Density_Fit1.rds",
+    file_refit = "never") 
+
+```
+
+Next, we employ `pp_check` to verify the model fit:
+
+```{r}
+#| label: Pdgfrb_Ecc_Density_Mdl1_Plot
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+set.seed(8807)
+pp_check(Pdgfrb_Density_Fit1, ndraws = 100) +
+                  
+  ggtitle("Model predictive check")
+```
+The results show a clear boundary at 0 and we see no major deviations from the data. Now, we check the results
+
+```{r}
+#| label: Pdgfrb_Density_Fit1_Results
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+plot(Pdgfrb_Density_Fit1)
+summary(Pdgfrb_Density_Fit1)
+Pdgfrb_Density_Fit1 %>%
+  emmeans(~ Region, var = "Density", epred = TRUE) 
+```
+
+We see no faults in the MCMC simulation and the chains have converged successfully. Please note the the summary function shows in he log-scale given the model parameters. To print the results in the natural scale we use the `emmeans` function from the `emmeans` package [@emmeans].
+
+Next, we can visualize the whole posterior distribution:
+
+```{r}
+#| label: Pdgfrb_Density_Fit1_Intercept
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+  Pdgfrb_Density_Fit1_fig <- Pdgfrb_Density_Fit1 |> 
+  emmeans(~ Region, var = "Density", epred = TRUE) |> 
+  gather_emmeans_draws() |> 
+  ggplot(aes(x = Region, y = .value)) +
+  stat_halfeye (alpha = .7) +
+  stat_pointinterval(.width = c(0.5, 0.95)) +
+  scale_y_continuous(limits = c(0, 80),
+                     breaks = seq(0,80, 20)) +
+  labs(x = "Region",
+       y =  expression("Cel number/mm"^2)) +
+  Plot_theme +
+  coord_flip()
+
+ 
+Pdgfrb_Density_Fit1_fig
+
+ggsave(
+  plot     = Pdgfrb_Density_Fit1_fig, 
+  filename = "Plots/Pdgfrb_Density_Fit1_fig.png", 
+  width    = 10, 
+  height   = 8, 
+  units    = "cm")
+```
+
+Please note that this graph represents the whole posterior distribution (estimate) with `stat_pointinterval` at 0.5 (thin line) and 0.95 (gross line) uncertainty intervals.
+
+The results show that the cortex (60 HPD5% = 49-73) is the one displaying a bigger cell density, followed by the hippocampal formation (41 HPD5% = 29-53) and the cerebral nuclei (28 HPD5% = 22-35). 
+
+
+### Multilevel lognormal model
+
+This model takes the form:
+
+$$
+\text{logit}(Pr(Density_{ij} > 0 | Region_{ij})) = \alpha_0 + \alpha_{Region} \times Region_{ij}
+$$
+
+For modeling the hurdle component, and:
+
+$$ 
+\begin{aligned}
+
+
+ Density_{ij} \sim \text{Distribution}(\mu_{ij}, \sigma) \text{ for }  Density_{ij} >  0 \\
+  
+\mu_{ij} = \beta_0 + \beta_{Region} \times Region_{ij} + b_{0j} + b_{Region_j} \times Region_{ij}
+
+\end{aligned}
+$$ 
+
+For the multilevel part, where $\mu_ij$ is the expected density,$\beta_0$ and $\beta_Region$ are the coefficients for the effects of Region, and $b_0j$ and $b_Regionj$ is the random intercept and slope for `Brain-id`. 
+
+Now, we establish the model formula:
+
+```{r}
+#| label: Pdgfrb_Density_Formula
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+Pdgfrb_Density_Mdl2 <- bf(Density ~ Region + (1 + Region | Brain_id),
+                       hu ~ Region)
+
+get_prior(Pdgfrb_Density_Mdl2, Pdgfrb_Annotations, family = hurdle_lognormal())
+```
+As before, we use the `brms` default priors. Now, we can fit the model:
+
+```{r}
+#| label: Pdgfrb_Density_Fit2
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+# Fit model 2
+Pdgfrb_Density_Fit2 <- 
+  brm(
+    family  = hurdle_lognormal(), 
+    data    = Pdgfrb_Annotations,
+    formula = Pdgfrb_Density_Mdl2,
+    chains  = 4,
+    cores   = 4,
+    warmup  = 2500, 
+    iter    = 5000, 
+    seed    = 8807,
+    control = list(adapt_delta = 0.99, max_treedepth = 15),
+    file    = "Models/Pdgfrb_Density_Fit2.rds",
+    file_refit = "never") 
+
+```
+
+
+We verify the predictions:
+
+```{r}
+#| label: Pdgfrb_Ecc_Density_Mdl1_Plot
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+set.seed(8807)
+pp_check(Pdgfrb_Density_Fit2, ndraws = 100) +
+                  
+  ggtitle("Model predictive check")
+```
+
+We see no major deviations from the data. Next, we visualize the results.
+
+```{r}
+#| label: Pdgfrb_Density_Fit2_Results
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+plot(Pdgfrb_Density_Fit2)
+summary(Pdgfrb_Density_Fit2)
+Pdgfrb_Density_Fit2 %>% 
+  emmeans(~ Region, var = "Density", epred = TRUE, re_formula = NULL) 
+```
+
+We see no faults in the MCMC simulation and the chains have converged successfully. Please note the the summary function shows in he log-scale given the model parameters. To print the results in the natural scale we use the `emmeans` function from the `emmeans` package [@emmeans].
+
+The results for the group-level effects denote that there is a substantial variability in the baseline across brains `sd_intercept` = 0.94. Otherwise, sd(Region_i) shows that the most variability occurred in the HPF = 0.76. Then, the `cor` values are close to 0, indicating a weak link between the random intercepts and slopes. This denotes that the group-level effects, that is, the differences in baseline `Density` and differences in how Regions affect `Density` operate independently across `Brain_id`.  
+
+The coefficients for population-level effects are interpreted as usual, with each region indicating the contrast to cortex. 
+
+Next, we can visualize the whole posterior distribution:
+
+```{r}
+#| label: Pdgfrb_Density_Fit1_Intercept
+#| include: true
+#| warning: false
+#| message: false
+#| results: false
+#| cache: true
+
+  Pdgfrb_Density_Fit2_fig <- Pdgfrb_Density_Fit2 |> 
+  emmeans(~ Region, var = "Density", epred = TRUE,
+          re_formula = NULL, allow_new_levels = TRUE) |> 
+  gather_emmeans_draws() |> 
+  ggplot(aes(x = Region, y = .value)) +
+  stat_halfeye (alpha = .7) +
+  stat_pointinterval(.width = c(0.5, 0.95)) +
+  scale_y_continuous(limits = c(0, 80),
+                     breaks = seq(0,80, 20)) +
+  labs(x = "Region",
+       y =  expression("Cel number/mm"^2)) +
+  Plot_theme +
+  coord_flip()
+
+ 
+Pdgfrb_Density_Fit2_fig
+
+ggsave(
+  plot     = Pdgfrb_Density_Fit2_fig, 
+  filename = "Plots/Pdgfrb_Density_Fit2_fig.png", 
+  width    = 10, 
+  height   = 8, 
+  units    = "cm")
+```
+
+Please note that this graph represents the whole posterior distribution (estimate) with `stat_pointinterval` at 0.5 (thin line) and 0.95 (gross line) uncertainty intervals.
+
+Considering the hierarchy of the data, the results show that the cortex (59 HPD5% = 49-73) is the one displaying a bigger cell density, followed by the hippocampal formation (44 HPD5% = 33-55) and the cerebral nuclei (28 HPD5% = 24-32). 
+
+
+
+# References
+
+::: {#refs}
+:::
