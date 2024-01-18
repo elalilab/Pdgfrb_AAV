@@ -9,7 +9,9 @@ This repository serves the research project for the investigation of PDGFR-β+ c
 ### Folders:
 
 **Models:** This folder contains the brms-fitted models executed in the notebooks. 
+
 **ProData:** Contains processed `.cvs` matrix or data frames generated after data cleaning and pre-processing.
+
 **RawData:** Contains raw `.cvs` or `.tsv` files resulting from CellProfiller or QuPath pipelines. These files are loaded, cleaned and transformed in the different notebooks available in this repository. The final data for analysis and visualization are saved in the **ProData** folder. 
 
 ### Individual notebooks:
