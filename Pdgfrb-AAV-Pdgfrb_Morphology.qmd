@@ -157,12 +157,14 @@ Now, the working data set comprises only 6 columns with four id/grouping factors
 #| include: true
 #| warning: false
 #| message: false
-#| results: true
+#| results: hold
 #| cache: true
 
 Pdgfrb$Area_um2 <- Pdgfrb$Area / 10.4368
 
 knitr::kable(Pdgfrb[1:7, ])
+
+write.csv (Pdgfrb, "ProData/Pdgfrb_Morphology.csv")
 
 ```
 

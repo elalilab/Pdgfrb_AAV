@@ -44,7 +44,7 @@ In this notebook, we analyze the number of PDGFR-𝛽 (AAV)+ cells in the health
 
 **Parent dataset:** Five to seven brain slices were aligned to the Allen brain Atlas using Aligning Big Brains & Atlases (ABBA) (https://biop.github.io/ijp-imagetoatlas/). Then, unbiased cell detection and quantification was done in QuPath [@bankhead2017]. The source project is available at XXXX.
 
-**Working dataset:** "Annotations" and "detections" files exported from QuPath containing cell quantification and information on individual detected cells, respectively. The cells were quantified in the cortex (CTX), striatum/Cerebral Nuclei (CNU), hipothalamus (HY), and fiber tracks.
+**Working dataset:** "Annotations" files exported from QuPath containing cell quantification in different brain areas: cortex (CTX), striatum/Cerebral Nuclei (CNU), hipothalamus (HY), and fiber tracks.
 
 # Install and load required packages
 
@@ -59,7 +59,7 @@ Install and load all required packages. Please uncomment (delete #) the line cod
 #install.packages("devtools")
 library(devtools)
 
-#install.packages(c("bayesplot", "bayestestR", "brms","broom.mixed", "dplyr", "easystats","emmeans", "ggdist", "ggplot", "ggcorrplot", "modelbased", "modelr", "patchwork", "poorman", "tidybayes", "tidyverse", "viridis"))
+#install.packages(c("bayesplot", "bayestestR", "brms","broom.mixed", "dplyr", "easystats","emmeans", "ggdist", "ggplot", "ggcorrplot", "modelbased", "modelr", "patchwork", "poorman", "reticulate", "tidybayes", "tidyverse", "viridis"))
 
 library(bayesplot)
 library(bayestestR)
@@ -74,6 +74,7 @@ library(modelbased)
 library(modelr)
 library(patchwork)
 library(poorman)
+library(reticulate)
 library(tidybayes)
 library(tidyverse)
 library(viridis)
@@ -117,9 +118,8 @@ Plot_theme <- theme_classic() +
       ) 
 ```
 
-# Alaysis of cell number in diferent brain regions
 
-## Load and merge the data sets
+# Load and merge the data sets
 
 We load all the `Annotations.tsv` files contained in the `RawData/Pdgfrb_Quantification` folder and merge them in a single data frame.
 
@@ -149,7 +149,7 @@ Pdgfrb_Annotations <- files %>%
 
 The file contain 16 columns (variables), most of which are not of interest for us. Therefore, we subset the data set and assign descriptive column names.
 
-## Handling the data set
+# Handling the data set
 
 We subset the data set to obtain the cell counts and the respective identification factors. Importantly, the data set contains cell counts for fiber tracts. However, we considered that the alignment to the Allen brain atlas specifically for this region is not trustworthy, given that tiny deformation in the brain slices allows cells from the cortex being included into the fiber tracts. Therefore, we exclude this region from the analysis. 
 
@@ -182,7 +182,7 @@ write.csv(Pdgfrb_Annotations, "ProData/Pdgfrb_Annotations.csv")
 
 The last row contains the number of cells in each brain region. Next, we perform an initial visualization of the data set.
 
-## Exploratory data visualization
+# Exploratory data visualization
 
 We plot the response variables per region using rain cloud plots.
 
@@ -302,12 +302,10 @@ In this section, we do modeling for the density of cells using the `brms` packag
 
 Hence, although we handle count data, we judge prudent to perform the modeling using a hurdle log-normal model, commonly used for continuous data with right-skewed distribution.
 
-## Modeling for cell density
-
 We build two models. A first model using the `hurdle_lognormal` distribution having `Region` as a predictor. On the other hand, taking into consideration that we processed several slides per animal, we fit multilevel model accounting for the hierarchy of the data. 
 
 
-### Simple lognormal model
+## Simple lognormal model
 
 This model takes the form:
 
@@ -439,7 +437,7 @@ Please note that this graph represents the whole posterior distribution (estimat
 The results show that the cortex (60 HPD5% = 49-73) is the one displaying a bigger cell density, followed by the hippocampal formation (41 HPD5% = 29-53) and the cerebral nuclei (28 HPD5% = 22-35). 
 
 
-### Multilevel lognormal model
+## Multilevel lognormal model
 
 This model takes the form:
 
@@ -581,6 +579,9 @@ ggsave(
 Please note that this graph represents the whole posterior distribution (estimate) with `stat_pointinterval` at 0.5 (thin line) and 0.95 (gross line) uncertainty intervals.
 
 Considering the hierarchy of the data, the results show that the cortex (59 HPD5% = 49-73) is the one displaying a bigger cell density, followed by the hippocampal formation (44 HPD5% = 33-55) and the cerebral nuclei (28 HPD5% = 24-32). 
+
+
+
 
 
 
